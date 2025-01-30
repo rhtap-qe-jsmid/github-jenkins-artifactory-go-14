@@ -1,86 +1,55 @@
-/* Generated from templates/source-repo/Jenkinsfile.njk. Do not edit directly. */
+# from init
+export REBUILD=${REBUILD-true}
+export SKIP_CHECKS=${SKIP_CHECKS-true}
 
-library identifier: 'RHTAP_Jenkins@main', retriever: modernSCM(
-  [$class: 'GitSCMSource',
-   remote: 'https://github.com/redhat-appstudio/tssc-sample-jenkins.git'])
+CI_TYPE=${CI_TYPE:-jenkins}
 
-pipeline {
-    agent any
-    environment {
-        ROX_API_TOKEN = credentials('ROX_API_TOKEN')
-        ROX_CENTRAL_ENDPOINT = credentials('ROX_CENTRAL_ENDPOINT')
-        GITOPS_AUTH_PASSWORD = credentials('GITOPS_AUTH_PASSWORD')
-        /* Uncomment this when using Gitlab */
-        /* GITOPS_AUTH_USERNAME = credentials('GITOPS_AUTH_USERNAME') */
-        /* Set this to the user for your specific registry */
-        /* IMAGE_REGISTRY_USER = credentials('IMAGE_REGISTRY_USER') */
-        /* Set this password for your specific registry */
-        /* IMAGE_REGISTRY_PASSWORD = credentials('IMAGE_REGISTRY_PASSWORD') */
-        /* Default registry is set to quay.io */
-        QUAY_IO_CREDS = credentials('QUAY_IO_CREDS')
-        /* ARTIFACTORY_IO_CREDS = credentials('ARTIFACTORY_IO_CREDS') */
-        /* NEXUS_IO_CREDS = credentials('NEXUS_IO_CREDS') */
-        COSIGN_SECRET_PASSWORD = credentials('COSIGN_SECRET_PASSWORD')
-        COSIGN_SECRET_KEY = credentials('COSIGN_SECRET_KEY')
-        COSIGN_PUBLIC_KEY = credentials('COSIGN_PUBLIC_KEY')
-        /* Set when using Jenkins on non-local cluster and using an external Rekor instance */
-        /* REKOR_HOST = credentials('REKOR_HOST') */
-        /* Set when using Jenkins on non-local cluster and using an external TUF instance */
-        /* TUF_MIRROR = credentials('TUF_MIRROR') */
-    }
-    stages {
-        stage('init') {
-            steps {
-                script {
-                    rhtap.info('init')
-                    rhtap.init()
-                }
-            }
-        }
+# from buildah-rhtap
+TAG=$(git rev-parse HEAD)
+export IMAGE_URL=${IMAGE_URL-artifactory-artifactory-jcr.apps.rosa.rhtap-services.xmdt.p3.openshiftapps.com/rhtap-docker-local/rhtap-qe-jsmid:$CI_TYPE-$TAG}
+export IMAGE=${IMAGE-$IMAGE_URL}
 
-        stage('build') {
-            steps {
-                script {
-                    rhtap.info('buildah_rhtap')
-                    rhtap.buildah_rhtap()
-                    rhtap.info('cosign_sign_attest')
-                    rhtap.cosign_sign_attest()
-                }
-            }
-        }
+export DOCKERFILE=${DOCKERFILE-docker/Dockerfile}
+export CONTEXT=${CONTEXT-.}
+export TLSVERIFY=${TLSVERIFY-false}
+export BUILD_ARGS=${BUILD_ARGS-""}
+export BUILD_ARGS_FILE=${BUILD_ARGS_FILE-""}
 
-        stage('scan') {
-            steps {
-                script {
-                    rhtap.info('acs_deploy_check')
-                    rhtap.acs_deploy_check()
-                    rhtap.info('acs_image_check')
-                    rhtap.acs_image_check()
-                    rhtap.info('acs_image_scan')
-                    rhtap.acs_image_scan()
-                }
-            }
-        }
+# from ACS_*.*
+export DISABLE_ACS=${DISABLE_ACS-false}
+# Optionally set ROX_CENTRAL_ENDPOINT here instead of configuring a Jenkins secret
+export ROX_CENTRAL_ENDPOINT=central-rhacs-operator.apps.rosa.rhtap-services.xmdt.p3.openshiftapps.com:443
+export INSECURE_SKIP_TLS_VERIFY=${INSECURE_SKIP_TLS_VERIFY-true}
 
-        stage('deploy') {
-            steps {
-                script {
-                    rhtap.info('update_deployment')
-                    rhtap.update_deployment()
-                }
-            }
-        }
+# for gitops, if acs scans are set, we still may not want that repo 
+# to be updates so include an option to disable
 
-        stage('summary') {
-            steps {
-                script {
-                    rhtap.info('show_sbom_rhdh')
-                    rhtap.show_sbom_rhdh()
-                    rhtap.info('summary')
-                    rhtap.summary()
-                }
-            }
-        }
+export DISABLE_GITOPS_UPDATE=${DISABLE_GITOPS_UPDATE-false}
+export GITOPS_REPO_URL=https://github.com/rhtap-qe-jsmid/github-jenkins-artifactory-dotnet-14-gitops
 
-    }
-}
+export PARAM_IMAGE=${PARAM_IMAGE-$IMAGE}
+# Recompute this every time, otherwise it will be set BEFORE the file exists
+# and be stuck at latest
+export PARAM_IMAGE_DIGEST=$(cat "$BASE_RESULTS/buildah-rhtap/IMAGE_DIGEST" 2>/dev/null || echo "latest")
+
+# From Summary
+export SOURCE_BUILD_RESULT_FILE=${SOURCE_BUILD_RESULT_FILE-""}
+
+# gather images params
+
+export TARGET_BRANCH=${TARGET_BRANCH-""}
+# enterprise contract
+export POLICY_CONFIGURATION=${POLICY_CONFIGURATION-"github.com/enterprise-contract/config//rhtap-${CI_TYPE}"}
+#internal, assumes jenkins is local openshift
+export REKOR_HOST="https://rekor-server-rhtap-tas.apps.cluster-q9jnn.q9jnn.sandbox2075.opentlc.com"
+export IGNORE_REKOR=${IGNORE_REKOR-false}
+export INFO=${INFO-true}
+export STRICT=${STRICT-true}
+export EFFECTIVE_TIME=${EFFECTIVE_TIME-now}
+export HOMEDIR=${HOMEDIR-$(pwd)}
+export TUF_MIRROR="https://tuf-rhtap-tas.apps.cluster-q9jnn.q9jnn.sandbox2075.opentlc.com"
+
+# Allow PR to succeed even if TAS vars not configured
+export FAIL_IF_TRUSTIFICATION_NOT_CONFIGURED=false
+
+export SBOMS_DIR=results/sboms
