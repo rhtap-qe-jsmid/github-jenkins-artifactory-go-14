@@ -25,7 +25,7 @@ export INSECURE_SKIP_TLS_VERIFY=${INSECURE_SKIP_TLS_VERIFY-true}
 # to be updates so include an option to disable
 
 export DISABLE_GITOPS_UPDATE=${DISABLE_GITOPS_UPDATE-false}
-export GITOPS_REPO_URL=https://github.com/rhtap-qe-jsmid/github-jenkins-artifactory-dotnet-14-gitops
+export GITOPS_REPO_URL=https://github.com/rhtap-qe-jsmid/github-jenkins-artifactory-go-14-gitops
 
 export PARAM_IMAGE=${PARAM_IMAGE-$IMAGE}
 # Recompute this every time, otherwise it will be set BEFORE the file exists
